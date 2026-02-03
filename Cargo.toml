@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-csv = "1.4.0"
 fast-float = "0.2.0"
 memmap2 = "0.9.9"
 rayon = "1.11.0"
