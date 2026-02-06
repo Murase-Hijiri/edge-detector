@@ -6,6 +6,7 @@ use rayon::prelude::*;
 
 const CHUNK_SIZE: usize = 1_000_000;
 const OVERLAP_SIZE: usize = 10;
+const HEADER_LENGTH: usize = 13;
 
 pub(crate) fn load_voltage(file_path: &str) -> Result<Vec<f64>, Box<dyn std::error::Error>> {
     print!("ファイルをメモリマップ中...");
@@ -19,6 +20,7 @@ pub(crate) fn load_voltage(file_path: &str) -> Result<Vec<f64>, Box<dyn std::err
     let voltage: Vec<f64> = mmap
         .split(|&b| b == b'\n')
         .filter(|line| !line.is_empty())
+        .skip(HEADER_LENGTH)
         .map(|line| {
             if line.last() == Some(&b'\r') {
                 &line[..line.len() - 1]
@@ -26,16 +28,16 @@ pub(crate) fn load_voltage(file_path: &str) -> Result<Vec<f64>, Box<dyn std::err
                 line
             }
         })
-        .map(|line| {
+        .filter_map(|line| {
             if let Some(pos) = line.iter().position(|&b| b == b',') {
                 // 2列目の値（電圧）を返す
-                fast_float::parse::<f64, &[u8]>(&line[pos + 1..])
-                    .map_err(|e| format!("パース失敗: {}", e))
+                fast_float::parse::<f64, &[u8]>(&line[pos + 1..]).ok()
             } else {
-                Err("1列以下しか値が存在しない行があります".into())
+                None
             }
         })
-        .collect::<Result<Vec<f64>, String>>()?;
+        .filter(|val| val.is_finite())
+        .collect();
     println!("完了\nレコード長: {}", voltage.len());
 
     Ok(voltage)
